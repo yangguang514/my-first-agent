@@ -22,8 +22,8 @@ http://localhost:3010
 
 项目已经支持 Vercel：
 
-- 静态页面由 `public/` 托管。
-- 前端源码在 `frontend/src/`，部署前通过 `npm run build` 同步到 `public/src/`。
+- 静态页面由 `dist/` 托管。
+- 前端源码在 `frontend/src/`，部署前通过 `npm run build` 同步到 `dist/src/`。
 - API 入口是 `api/[...path].js`。
 - 会话存储在 Vercel 上建议使用 Postgres。
 
@@ -72,7 +72,7 @@ Vercel 会执行：
 npm run build
 ```
 
-并把 `public/` 作为静态输出目录。
+并把 `dist/` 作为静态输出目录。
 
 ## 架构
 
@@ -98,7 +98,7 @@ animalAgent/
   public/
     index.html
     styles.css
-    src/                          # npm run build 生成
+  dist/                           # npm run build 生成，Vercel 静态输出
 ```
 
 ## API

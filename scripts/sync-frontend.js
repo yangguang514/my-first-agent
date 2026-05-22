@@ -3,11 +3,14 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const source = join(root, "frontend", "src");
-const target = join(root, "public", "src");
+const publicSource = join(root, "public");
+const frontendSource = join(root, "frontend", "src");
+const dist = join(root, "dist");
 
-await rm(target, { recursive: true, force: true });
-await mkdir(target, { recursive: true });
-await cp(source, target, { recursive: true });
+await rm(dist, { recursive: true, force: true });
+await mkdir(dist, { recursive: true });
+await cp(publicSource, dist, { recursive: true });
+await rm(join(dist, "src"), { recursive: true, force: true });
+await cp(frontendSource, join(dist, "src"), { recursive: true });
 
-console.log("Synced frontend/src -> public/src");
+console.log("Built static frontend -> dist");
