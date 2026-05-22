@@ -34,6 +34,11 @@ async function readStore() {
 }
 
 async function writeStore(store) {
+  if (process.env.VERCEL) {
+    throw new Error(
+      "JSON storage cannot persist on Vercel. Add Vercel Postgres and set STORAGE_PROVIDER=postgres."
+    );
+  }
   await mkdir(dataDir, { recursive: true });
   await writeFile(storePath, JSON.stringify(store, null, 2), "utf8");
 }

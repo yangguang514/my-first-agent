@@ -11,15 +11,24 @@ async function ensureEnv() {
 }
 
 export default async function handler(req, res) {
-  await ensureEnv();
+  try {
+    await ensureEnv();
 
-  if (!req.url?.startsWith("/api/")) {
-    const path = Array.isArray(req.query?.path) ? req.query.path.join("/") : req.query?.path || "";
-    req.url = `/api/${path}`;
-  }
+    if (!req.url?.startsWith("/api/")) {
+      const path = Array.isArray(req.query?.path) ? req.query.path.join("/") : req.query?.path || "";
+      req.url = `/api/${path}`;
+    }
 
-  const handled = await handleApi(req, res);
-  if (!handled && !res.writableEnded) {
-    sendJson(res, 404, { error: "Not found" });
+    const handled = await handleApi(req, res);
+    if (!handled && !res.writableEnded) {
+      sendJson(res, 404, { error: "Not found" });
+    }
+  } catch (error) {
+    console.error(error);
+    if (!res.writableEnded) {
+      sendJson(res, 500, {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 }

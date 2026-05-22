@@ -76,7 +76,13 @@ export function getSearchConfig() {
 }
 
 export function getServerConfig() {
-  const defaultStorageProvider = process.env.VERCEL ? "postgres" : "json";
+  const hasPostgresEnv = Boolean(
+    process.env.POSTGRES_URL ||
+      process.env.POSTGRES_PRISMA_URL ||
+      process.env.POSTGRES_URL_NON_POOLING ||
+      process.env.DATABASE_URL
+  );
+  const defaultStorageProvider = process.env.VERCEL && hasPostgresEnv ? "postgres" : "json";
   return {
     port: Number(process.env.PORT || 3010),
     storageProvider: (process.env.STORAGE_PROVIDER || defaultStorageProvider).toLowerCase()
