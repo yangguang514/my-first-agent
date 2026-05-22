@@ -1,0 +1,14 @@
+{
+  "name": "animal-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "check": "node --check server.js && node --check backend/server.js && node --check frontend/src/main.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
