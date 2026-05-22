@@ -4,13 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.js",
-    "start": "node server.js",
-    "build": "node scripts/sync-frontend.js",
-    "check": "node --check server.js && node --check backend/server.js && node --check api/[...path].js && node --check frontend/src/main.js"
+    "dev": "node animalServer/index.js",
+    "start": "node animalServer/index.js",
+    "build": "echo no build needed",
+    "check": "node --check animalServer/index.js && node --check backend/server.js && node --check backend/routes/apiRoutes.js && node --check backend/services/chatService.js"
   },
   "dependencies": {
-    "@vercel/postgres": "^0.10.0"
+    "@vercel/postgres": "^0.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
   },
   "engines": {
     "node": ">=18"

@@ -6,7 +6,7 @@
 
 ```bash
 copy .env.example .env
-npm run build
+npm install
 npm run dev
 ```
 
@@ -20,26 +20,40 @@ http://localhost:3010
 
 ## Vercel 部署
 
-项目已经支持 Vercel：
+项目结构已对齐 `singleAgent/weeklyReport`：
 
-- 静态页面由 `dist/` 托管。
-- 前端源码在 `frontend/src/`，部署前通过 `npm run build` 同步到 `dist/src/`。
-- API 入口是 `api/[...path].js`。
-- 会话存储在 Vercel 上建议使用 Postgres。
+- `animalClient/index.html`：单文件静态前端。
+- `animalServer/index.js`：Express 服务端入口。
+- `backend/`：动物智能体业务服务层。
+- `vercel.json`：把 `/api/*` 路由到 Express 服务，把其他路径路由到前端页面。
 
-### 1. 安装 Vercel CLI
+### 1. Vercel 项目设置
+
+在 Vercel New Project 中：
+
+```text
+Root Directory: animalAgent
+Framework Preset: Other
+Build Command: 留空
+Output Directory: 留空
+Install Command: npm install
+```
+
+这个结构和 `singleAgent/weeklyReport` 类似：静态前端和 Express 服务端由 `vercel.json` 路由。
+
+### 2. 安装 Vercel CLI
 
 ```bash
 npm i -g vercel
 ```
 
-### 2. 进入项目目录
+### 3. 进入项目目录
 
 ```bash
 cd animalAgent
 ```
 
-### 3. 配置环境变量
+### 4. 配置环境变量
 
 在 Vercel Dashboard 的 Project Settings -> Environment Variables 中添加：
 
@@ -59,27 +73,27 @@ STORAGE_PROVIDER=postgres
 
 再连接 Vercel Postgres 或 Neon Postgres。Vercel Postgres 会自动注入 `POSTGRES_URL` 等变量。
 
-### 4. 部署
+### 5. 部署
 
 ```bash
 vercel
 vercel --prod
 ```
 
-Vercel 会执行：
+Vercel 会按 `vercel.json` 路由：
 
-```bash
-npm run build
-```
-
-并把 `dist/` 作为静态输出目录。
+- `/api/*` -> `animalServer/index.js`
+- `/*` -> `animalClient/index.html`
 
 ## 架构
 
 ```text
 animalAgent/
-  api/
-    [...path].js                  # Vercel Function 入口
+  animalClient/
+    index.html                    # 静态前端，类似 weeklyReport/wrclient
+  animalServer/
+    index.js                      # Express 服务，类似 weeklyReport/wrserver
+    package.json
   backend/
     config/
     prompts/
@@ -90,15 +104,6 @@ animalAgent/
     routes/
     services/
     utils/
-  frontend/
-    src/
-      components/
-      services/
-      utils/
-  public/
-    index.html
-    styles.css
-  dist/                           # npm run build 生成，Vercel 静态输出
 ```
 
 ## API

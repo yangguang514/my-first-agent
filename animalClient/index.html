@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AnimalAgent</title>
+    <style>
+      :root {
+        --bg: #eef3ee;
+        --panel: #ffffff;
+        --panel-strong: #f7faf7;
+        --text: #1e2a22;
+        --muted: #607166;
+        --line: #d8e2d7;
+        --accent: #1f7a5b;
+        --accent-dark: #145a43;
+        --amber: #d28a20;
+        --blue: #316c9a;
+        --shadow: 0 20px 50px rgba(33, 50, 39, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        margin: 0;
+        color: var(--text);
+        background:
+          linear-gradient(135deg, rgba(31, 122, 91, 0.14), rgba(49, 108, 154, 0.1)),
+          var(--bg);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      button,
+      textarea {
+        font: inherit;
+      }
+
+      .app-shell {
+        height: 100vh;
+        padding: 24px;
+        overflow: hidden;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        width: min(1180px, 100%);
+        height: calc(100vh - 48px);
+        min-height: 0;
+        margin: 0 auto;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.78);
+        border: 1px solid rgba(216, 226, 215, 0.85);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+      }
+
+      .side-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        min-height: 0;
+        padding: 28px;
+        overflow: hidden;
+        color: #f7fff9;
+        background: linear-gradient(160deg, rgba(20, 90, 67, 0.94), rgba(33, 75, 91, 0.94));
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.12);
+        font-size: 24px;
+        font-weight: 800;
+      }
+
+      .brand h1,
+      .chat-header h2 {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      .brand h1 {
+        font-size: 24px;
+      }
+
+      .brand p,
+      .chat-header p {
+        margin: 6px 0 0;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .brand p {
+        color: rgba(255, 255, 255, 0.72);
+      }
+
+      .new-chat-button {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid rgba(255, 255, 255, 0.34);
+        border-radius: 8px;
+        color: #f7fff9;
+        background: rgba(255, 255, 255, 0.14);
+        cursor: pointer;
+        font-weight: 800;
+      }
+
+      .conversation-section {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        gap: 10px;
+        min-height: 170px;
+      }
+
+      .side-heading {
+        color: rgba(255, 255, 255, 0.68);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .conversation-list {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        min-height: 0;
+        max-height: 34vh;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+
+      .conversation-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 32px;
+        gap: 6px;
+        align-items: stretch;
+      }
+
+      .conversation-open,
+      .conversation-delete {
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 8px;
+        color: #f7fff9;
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+      }
+
+      .conversation-open {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+        padding: 10px 11px;
+        text-align: left;
+      }
+
+      .conversation-delete {
+        display: grid;
+        place-items: center;
+        width: 32px;
+        color: rgba(255, 255, 255, 0.68);
+        font-weight: 800;
+      }
+
+      .conversation-item.active .conversation-open,
+      .conversation-open:hover,
+      .conversation-delete:hover,
+      .new-chat-button:hover {
+        background: rgba(255, 255, 255, 0.18);
+      }
+
+      .conversation-item.active .conversation-open {
+        border-color: rgba(255, 255, 255, 0.42);
+      }
+
+      .conversation-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .conversation-meta {
+        color: rgba(255, 255, 255, 0.58);
+        font-size: 12px;
+      }
+
+      .capability-list {
+        display: grid;
+        gap: 12px;
+        margin-top: auto;
+      }
+
+      .capability-list div {
+        padding: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .capability-list strong,
+      .capability-list span {
+        display: block;
+      }
+
+      .capability-list strong {
+        font-size: 15px;
+      }
+
+      .capability-list span {
+        margin-top: 5px;
+        color: rgba(255, 255, 255, 0.74);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .chat-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--panel);
+      }
+
+      .chat-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 22px 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .chat-header h2 {
+        font-size: 20px;
+      }
+
+      .chat-header p {
+        color: var(--muted);
+      }
+
+      .icon-button {
+        display: grid;
+        place-items: center;
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--muted);
+        background: var(--panel-strong);
+        cursor: pointer;
+      }
+
+      .messages {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        min-height: 0;
+        padding: 24px;
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+
+      .message {
+        display: grid;
+        gap: 8px;
+        max-width: 88%;
+      }
+
+      .message.user {
+        align-self: flex-end;
+      }
+
+      .message.assistant {
+        align-self: flex-start;
+      }
+
+      .message-label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .bubble {
+        padding: 14px 16px;
+        border-radius: 8px;
+        line-height: 1.72;
+      }
+
+      .user .bubble {
+        color: #ffffff;
+        background: var(--accent);
+      }
+
+      .assistant .bubble {
+        border: 1px solid var(--line);
+        background: var(--panel-strong);
+      }
+
+      .bubble p {
+        margin: 0 0 10px;
+      }
+
+      .bubble p:last-child {
+        margin-bottom: 0;
+      }
+
+      .bubble ul,
+      .bubble ol {
+        margin: 8px 0 10px;
+        padding-left: 22px;
+      }
+
+      .bubble blockquote {
+        margin: 10px 0;
+        padding: 10px 12px;
+        border-left: 4px solid var(--amber);
+        background: #fff8ec;
+      }
+
+      .bubble table {
+        width: 100%;
+        margin: 12px 0;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      .bubble th,
+      .bubble td {
+        padding: 9px 10px;
+        border: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      .bubble th {
+        background: #e8f2ec;
+      }
+
+      .source-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+
+      .source-list a {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+        padding: 8px 10px;
+        border: 1px solid #dce8dd;
+        border-radius: 8px;
+        color: var(--accent-dark);
+        background: #ffffff;
+        text-decoration: none;
+        font-size: 13px;
+      }
+
+      .source-list strong {
+        overflow-wrap: anywhere;
+      }
+
+      .examples {
+        display: flex;
+        gap: 8px;
+        padding: 0 24px 16px;
+        overflow-x: auto;
+      }
+
+      .examples button {
+        flex: 0 0 auto;
+        max-width: 280px;
+        padding: 9px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        color: var(--text);
+        background: #fbfdfb;
+        cursor: pointer;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .composer {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        padding: 18px 24px 24px;
+        border-top: 1px solid var(--line);
+        background: #fbfdfb;
+      }
+
+      .composer textarea {
+        width: 100%;
+        min-height: 52px;
+        max-height: 160px;
+        padding: 13px 14px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        outline: none;
+        line-height: 1.5;
+      }
+
+      .composer button {
+        align-self: stretch;
+        min-width: 92px;
+        border: 0;
+        border-radius: 8px;
+        color: #ffffff;
+        background: var(--accent);
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .composer button:disabled {
+        cursor: wait;
+        opacity: 0.72;
+      }
+
+      .typing {
+        display: inline-flex;
+        gap: 5px;
+        align-items: center;
+      }
+
+      .typing span {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--blue);
+        animation: bounce 1s infinite ease-in-out;
+      }
+
+      .typing span:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+
+      .typing span:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+
+      @keyframes bounce {
+        0%,
+        80%,
+        100% {
+          transform: translateY(0);
+          opacity: 0.4;
+        }
+        40% {
+          transform: translateY(-4px);
+          opacity: 1;
+        }
+      }
+
+      @media (max-width: 820px) {
+        .app-shell {
+          padding: 0;
+        }
+
+        .workspace {
+          grid-template-columns: 1fr;
+          height: 100vh;
+          border: 0;
+          border-radius: 0;
+        }
+
+        .side-panel {
+          padding: 20px;
+        }
+
+        .capability-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .message {
+          max-width: 100%;
+        }
+
+        .composer {
+          grid-template-columns: 1fr;
+        }
+
+        .composer button {
+          min-height: 44px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace" aria-label="AnimalAgent 对话区">
+        <aside class="side-panel">
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">A</div>
+            <div>
+              <h1>AnimalAgent</h1>
+              <p>联网检索 + 信源标注 + 会话保存</p>
+            </div>
+          </div>
+
+          <button id="newChat" class="new-chat-button" type="button">新建对话</button>
+
+          <section class="conversation-section" aria-label="历史对话">
+            <div class="side-heading">对话</div>
+            <div id="conversationList" class="conversation-list"></div>
+          </section>
+
+          <div class="capability-list" aria-label="核心能力">
+            <div>
+              <strong>物种百科</strong>
+              <span>学名、栖息地、食性、保护现状</span>
+            </div>
+            <div>
+              <strong>行为解码</strong>
+              <span>从演化动机解释古怪行为</span>
+            </div>
+            <div>
+              <strong>跨物种对比</strong>
+              <span>用表格快速分辨相似动物</span>
+            </div>
+            <div>
+              <strong>生态链关联</strong>
+              <span>把物种放回真实生态位</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="chat-panel">
+          <header class="chat-header">
+            <div>
+              <h2 id="chatTitle">动物学问答</h2>
+              <p>直接提问，回答会流式输出并保存</p>
+            </div>
+            <button id="clearChat" class="icon-button" type="button" title="清空当前对话" aria-label="清空当前对话">
+              <span aria-hidden="true">C</span>
+            </button>
+          </header>
+
+          <div id="messages" class="messages" aria-live="polite"></div>
+
+          <div class="examples" aria-label="示例问题">
+            <button type="button">帮我介绍一下雪豹，顺便说下它和花豹有什么区别。</button>
+            <button type="button">猫咪为什么会踩奶？</button>
+            <button type="button">花豹 vs 美洲豹，怎么快速分辨？</button>
+            <button type="button">如果海獭数量下降，海带森林会发生什么？</button>
+          </div>
+
+          <form id="chatForm" class="composer">
+            <textarea
+              id="promptInput"
+              rows="2"
+              placeholder="输入你想了解的动物、行为或对比问题..."
+              aria-label="输入问题"
+              required
+            ></textarea>
+            <button id="sendButton" type="submit">发送</button>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const activeKey = "animal-agent-active-conversation-id";
+      const legacyStoreKey = "animal-agent-chat-store-v1";
+      const els = {
+        list: document.querySelector("#conversationList"),
+        messages: document.querySelector("#messages"),
+        form: document.querySelector("#chatForm"),
+        input: document.querySelector("#promptInput"),
+        send: document.querySelector("#sendButton"),
+        clear: document.querySelector("#clearChat"),
+        create: document.querySelector("#newChat"),
+        title: document.querySelector("#chatTitle"),
+        examples: document.querySelectorAll(".examples button")
+      };
+
+      const state = {
+        conversations: [],
+        activeId: localStorage.getItem(activeKey) || "",
+        activeConversation: null,
+        streamingIndex: -1,
+        busy: false
+      };
+
+      function escapeHtml(text) {
+        return String(text)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function renderInline(text) {
+        return escapeHtml(text)
+          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+          .replace(/`(.+?)`/g, "<code>$1</code>");
+      }
+
+      function renderTable(lines, startIndex) {
+        const rows = [];
+        let index = startIndex;
+        while (index < lines.length && /^\|.+\|$/.test(lines[index].trim())) {
+          rows.push(lines[index].trim());
+          index += 1;
+        }
+        if (rows.length < 2) return null;
+        const divider = rows[1].split("|").slice(1, -1).every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+        if (!divider) return null;
+        const header = rows[0].split("|").slice(1, -1).map((cell) => renderInline(cell.trim()));
+        const bodyRows = rows.slice(2).map((row) => row.split("|").slice(1, -1).map((cell) => renderInline(cell.trim())));
+        const thead = `<thead><tr>${header.map((cell) => `<th>${cell}</th>`).join("")}</tr></thead>`;
+        const tbody = `<tbody>${bodyRows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody>`;
+        return { html: `<table>${thead}${tbody}</table>`, nextIndex: index };
+      }
+
+      function renderMarkdown(markdown) {
+        const lines = String(markdown || "").split(/\r?\n/);
+        const blocks = [];
+        let list = null;
+        const closeList = () => {
+          if (!list) return;
+          blocks.push(`<${list.type}>${list.items.map((item) => `<li>${item}</li>`).join("")}</${list.type}>`);
+          list = null;
+        };
+
+        for (let index = 0; index < lines.length; index += 1) {
+          const line = lines[index].trim();
+          const table = renderTable(lines, index);
+          if (table) {
+            closeList();
+            blocks.push(table.html);
+            index = table.nextIndex - 1;
+            continue;
+          }
+          if (!line) {
+            closeList();
+            continue;
+          }
+          if (line.startsWith(">")) {
+            closeList();
+            blocks.push(`<blockquote>${renderInline(line.replace(/^>\s?/, ""))}</blockquote>`);
+            continue;
+          }
+          const unordered = line.match(/^[-*]\s+(.+)/);
+          if (unordered) {
+            if (!list || list.type !== "ul") {
+              closeList();
+              list = { type: "ul", items: [] };
+            }
+            list.items.push(renderInline(unordered[1]));
+            continue;
+          }
+          const ordered = line.match(/^\d+\.\s+(.+)/);
+          if (ordered) {
+            if (!list || list.type !== "ol") {
+              closeList();
+              list = { type: "ol", items: [] };
+            }
+            list.items.push(renderInline(ordered[1]));
+            continue;
+          }
+          closeList();
+          blocks.push(`<p>${renderInline(line)}</p>`);
+        }
+
+        closeList();
+        return blocks.join("");
+      }
+
+      async function parseJson(response) {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "请求失败");
+        return data;
+      }
+
+      const api = {
+        list: () => fetch("/api/conversations").then(parseJson),
+        create: () => fetch("/api/conversations", { method: "POST" }).then(parseJson),
+        get: (id) => fetch(`/api/conversations/${id}`).then(parseJson),
+        clear: (id) => fetch(`/api/conversations/${id}/clear`, { method: "POST" }).then(parseJson),
+        delete: (id) => fetch(`/api/conversations/${id}`, { method: "DELETE" }).then(parseJson),
+        import: (payload) =>
+          fetch("/api/conversations/import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          }).then(parseJson)
+      };
+
+      async function streamMessage(conversationId, content, onEvent) {
+        const response = await fetch(`/api/conversations/${conversationId}/chat/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content })
+        });
+        if (!response.ok || !response.body) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || "请求失败");
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          buffer = parseSse(buffer, onEvent);
+        }
+      }
+
+      function parseSse(buffer, onEvent) {
+        const events = buffer.split("\n\n");
+        const rest = events.pop() || "";
+        for (const eventText of events) {
+          const lines = eventText.split("\n");
+          const eventName = lines.find((line) => line.startsWith("event:"))?.replace(/^event:\s?/, "") || "message";
+          const dataText = lines
+            .filter((line) => line.startsWith("data:"))
+            .map((line) => line.replace(/^data:\s?/, ""))
+            .join("\n");
+          if (dataText) onEvent(eventName, JSON.parse(dataText));
+        }
+        return rest;
+      }
+
+      function renderSidebar() {
+        return state.conversations
+          .map((conversation) => {
+            const active = conversation.id === state.activeId ? " active" : "";
+            const date = new Date(conversation.updatedAt).toLocaleString("zh-CN", {
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit"
+            });
+            return `
+              <div class="conversation-item${active}" data-id="${conversation.id}">
+                <button class="conversation-open" type="button" title="${escapeHtml(conversation.title)}">
+                  <span class="conversation-title">${escapeHtml(conversation.title)}</span>
+                  <span class="conversation-meta">${date}</span>
+                </button>
+                <button class="conversation-delete" type="button" title="删除对话" aria-label="删除对话">x</button>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      function renderTyping() {
+        return `<span class="typing" aria-label="正在生成回答"><span></span><span></span><span></span></span>`;
+      }
+
+      function renderSources(sources = []) {
+        if (!sources.length) return "";
+        return `
+          <div class="source-list" aria-label="信息来源">
+            ${sources
+              .map(
+                (source) => `
+                  <a href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">
+                    <span>[${source.id}]</span>
+                    <strong>${escapeHtml(source.title)}</strong>
+                  </a>
+                `
+              )
+              .join("")}
+          </div>
+        `;
+      }
+
+      function renderMessages() {
+        return (state.activeConversation?.messages || [])
+          .map((message, index) => {
+            const label = message.role === "user" ? "You" : "AnimalAgent";
+            const isStreaming = index === state.streamingIndex && !message.content;
+            return `
+              <article class="message ${message.role}">
+                <div class="message-label">${label}</div>
+                <div class="bubble">
+                  ${isStreaming ? renderTyping() : renderMarkdown(message.content)}
+                  ${message.role === "assistant" ? renderSources(message.sources) : ""}
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      function render() {
+        els.list.innerHTML = renderSidebar();
+        els.title.textContent = state.activeConversation?.title || "动物学问答";
+        els.messages.innerHTML = renderMessages();
+        els.messages.scrollTop = els.messages.scrollHeight;
+      }
+
+      async function migrateLegacyConversations() {
+        const raw = localStorage.getItem(legacyStoreKey);
+        if (!raw) return;
+        try {
+          const legacy = JSON.parse(raw);
+          const conversations = Array.isArray(legacy?.conversations) ? legacy.conversations : [];
+          for (const conversation of conversations) {
+            const messages = Array.isArray(conversation.messages)
+              ? conversation.messages.filter((message) => message && ["user", "assistant"].includes(message.role))
+              : [];
+            if (messages.some((message) => message.role === "user")) {
+              await api.import({ title: conversation.title || "已迁移的对话", messages });
+            }
+          }
+        } finally {
+          localStorage.removeItem(legacyStoreKey);
+        }
+      }
+
+      async function refreshConversationList() {
+        const data = await api.list();
+        state.conversations = data.conversations || [];
+        render();
+      }
+
+      async function createAndOpenConversation() {
+        const data = await api.create();
+        await refreshConversationList();
+        await openConversation(data.conversation.id);
+      }
+
+      async function openConversation(id) {
+        if (state.busy) return;
+        const data = await api.get(id);
+        state.activeId = data.conversation.id;
+        state.activeConversation = data.conversation;
+        localStorage.setItem(activeKey, state.activeId);
+        render();
+      }
+
+      async function sendCurrentMessage(content) {
+        const text = content.trim();
+        if (!text || state.busy || !state.activeConversation) return;
+
+        state.busy = true;
+        els.send.disabled = true;
+        els.input.value = "";
+
+        state.activeConversation.messages.push({ role: "user", content: text, sources: [] });
+        state.streamingIndex = state.activeConversation.messages.push({ role: "assistant", content: "", sources: [] }) - 1;
+        render();
+
+        try {
+          await streamMessage(state.activeId, text, (eventName, data) => {
+            const assistant = state.activeConversation.messages[state.streamingIndex];
+            if (!assistant) return;
+            if (eventName === "sources") assistant.sources = data.sources || [];
+            if (eventName === "delta") assistant.content += data.content || "";
+            if (eventName === "error") throw new Error(data.message || "流式响应失败");
+            if (eventName === "done") {
+              state.activeConversation = data.conversation;
+              state.streamingIndex = -1;
+            }
+            render();
+          });
+
+          await refreshConversationList();
+          await openConversation(state.activeId);
+        } catch (error) {
+          const assistant = state.activeConversation.messages[state.streamingIndex];
+          if (assistant) {
+            assistant.content = `**服务暂时不可用**\n\n${error.message}\n\n请检查服务端环境变量、模型 Key、Search Key 和存储配置。`;
+          }
+        } finally {
+          state.streamingIndex = -1;
+          state.busy = false;
+          els.send.disabled = false;
+          render();
+          els.input.focus();
+        }
+      }
+
+      async function boot() {
+        await migrateLegacyConversations();
+        await refreshConversationList();
+        if (!state.activeId || !state.conversations.some((item) => item.id === state.activeId)) {
+          await createAndOpenConversation();
+        } else {
+          await openConversation(state.activeId);
+        }
+      }
+
+      els.form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        sendCurrentMessage(els.input.value);
+      });
+
+      els.input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          els.form.requestSubmit();
+        }
+      });
+
+      els.create.addEventListener("click", createAndOpenConversation);
+
+      els.clear.addEventListener("click", async () => {
+        if (!state.activeId || state.busy) return;
+        const data = await api.clear(state.activeId);
+        state.activeConversation = data.conversation;
+        await refreshConversationList();
+        render();
+      });
+
+      els.list.addEventListener("click", async (event) => {
+        const item = event.target.closest(".conversation-item");
+        if (!item) return;
+        if (event.target.closest(".conversation-delete")) {
+          const target = state.conversations.find((conversation) => conversation.id === item.dataset.id);
+          if (!target || !confirm(`删除“${target.title}”？此操作不会影响其他对话。`)) return;
+          await api.delete(item.dataset.id);
+          await refreshConversationList();
+          if (item.dataset.id === state.activeId) {
+            const next = state.conversations[0];
+            if (next) await openConversation(next.id);
+            else await createAndOpenConversation();
+          }
+          return;
+        }
+        await openConversation(item.dataset.id);
+      });
+
+      els.examples.forEach((button) => {
+        button.addEventListener("click", () => {
+          els.input.value = button.textContent;
+          els.input.focus();
+        });
+      });
+
+      boot().catch((error) => {
+        els.messages.innerHTML = `<article class="message assistant"><div class="message-label">AnimalAgent</div><div class="bubble"><p>${escapeHtml(error.message)}</p></div></article>`;
+      });
+    </script>
+  </body>
+</html>
