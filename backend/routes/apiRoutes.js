@@ -15,7 +15,7 @@ import { sendSse, setupSse } from "../utils/sse.js";
 export async function handleApi(req, res) {
   const parts = getRouteParts(req.url);
 
-  if (req.method === "GET" && req.url === "/health") {
+  if (req.method === "GET" && (req.url === "/health" || (parts[0] === "api" && parts[1] === "health"))) {
     sendJson(res, 200, { ok: true, name: "animal-agent" });
     return true;
   }

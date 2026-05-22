@@ -1,106 +1,12 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { dataDir } from "../config/env.js";
+import { getServerConfig } from "../config/env.js";
+import { JsonConversationRepository, welcomeMessage } from "./jsonConversationRepository.js";
+import { PostgresConversationRepository } from "./postgresConversationRepository.js";
 
-const storePath = join(dataDir, "conversations.json");
-
-function createId() {
-  return crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function createRepository() {
+  const { storageProvider } = getServerConfig();
+  if (storageProvider === "postgres") return new PostgresConversationRepository();
+  return new JsonConversationRepository();
 }
 
-function now() {
-  return new Date().toISOString();
-}
-
-export function welcomeMessage() {
-  return {
-    role: "assistant",
-    content:
-      "**核心名片模式已就绪**\n\n我支持联网检索、信源标注、流式输出和后端会话保存。\n\n> 试试：“帮我介绍一下雪豹，顺便说下它和花豹有什么区别。”",
-    sources: []
-  };
-}
-
-async function readStore() {
-  try {
-    const content = await readFile(storePath, "utf8");
-    const parsed = JSON.parse(content);
-    return {
-      conversations: Array.isArray(parsed.conversations) ? parsed.conversations : []
-    };
-  } catch {
-    return { conversations: [] };
-  }
-}
-
-async function writeStore(store) {
-  await mkdir(dataDir, { recursive: true });
-  await writeFile(storePath, JSON.stringify(store, null, 2), "utf8");
-}
-
-export class ConversationRepository {
-  async list() {
-    const store = await readStore();
-    return store.conversations
-      .map(({ messages, ...conversation }) => ({
-        ...conversation,
-        messageCount: Array.isArray(messages) ? messages.length : 0
-      }))
-      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-  }
-
-  async get(id) {
-    const store = await readStore();
-    return store.conversations.find((conversation) => conversation.id === id) || null;
-  }
-
-  async create(title = "新的动物对话") {
-    const store = await readStore();
-    const timestamp = now();
-    const conversation = {
-      id: createId(),
-      title,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      messages: [welcomeMessage()]
-    };
-    store.conversations.unshift(conversation);
-    await writeStore(store);
-    return conversation;
-  }
-
-  async import({ title = "已迁移的对话", messages = [] }) {
-    const store = await readStore();
-    const timestamp = now();
-    const conversation = {
-      id: createId(),
-      title,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      messages: messages.length ? messages : [welcomeMessage()]
-    };
-    store.conversations.unshift(conversation);
-    await writeStore(store);
-    return conversation;
-  }
-
-  async save(conversation) {
-    const store = await readStore();
-    const index = store.conversations.findIndex((item) => item.id === conversation.id);
-    const next = { ...conversation, updatedAt: now() };
-    if (index === -1) store.conversations.unshift(next);
-    else store.conversations[index] = next;
-    await writeStore(store);
-    return next;
-  }
-
-  async delete(id) {
-    const store = await readStore();
-    const before = store.conversations.length;
-    store.conversations = store.conversations.filter((conversation) => conversation.id !== id);
-    await writeStore(store);
-    return before !== store.conversations.length;
-  }
-}
-
-export const conversationRepository = new ConversationRepository();
+export { welcomeMessage };
+export const conversationRepository = createRepository();

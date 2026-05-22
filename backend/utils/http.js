@@ -8,6 +8,9 @@ export function sendJson(res, status, payload) {
 }
 
 export async function readJsonBody(req) {
+  if (req.body && typeof req.body === "object") return req.body;
+  if (req.body && typeof req.body === "string") return JSON.parse(req.body);
+
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   if (!chunks.length) return {};
