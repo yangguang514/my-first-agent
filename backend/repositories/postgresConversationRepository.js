@@ -43,7 +43,7 @@ export class PostgresConversationRepository {
     if (!this.pool) {
       this.pool = createPool({ connectionString });
     }
-    return this.pool.sql;
+    return this.pool.sql.bind(this.pool);
   }
 
   async ensureSchema() {
