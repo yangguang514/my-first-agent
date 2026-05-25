@@ -59,16 +59,18 @@ export async function appendUserMessageAndStream(conversationId, content, events
   });
 
   events.status("正在生成回答...");
-  const assistant = { role: "assistant", content: "", sources: search.sources };
-  conversation.messages.push(assistant);
-  conversation = await conversationRepository.save(conversation);
+  let answer = "";
 
-  const answer = await streamChat(conversation.messages.slice(0, -1), search.sources, (delta) => {
-    assistant.content += delta;
+  answer = await streamChat(conversation.messages, search.sources, (delta) => {
+    answer += delta;
     events.delta(delta);
   });
 
-  assistant.content = answer;
+  if (!answer.trim()) {
+    throw new Error("Model did not return a valid answer.");
+  }
+
+  conversation.messages.push({ role: "assistant", content: answer, sources: search.sources });
   conversation.title = generateLocalTitle(conversation.messages);
   conversation = await conversationRepository.save(conversation);
   return conversation;

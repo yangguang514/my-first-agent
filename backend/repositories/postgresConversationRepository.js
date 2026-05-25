@@ -11,7 +11,7 @@ function toConversation(row, messages = []) {
     title: row.title,
     createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at,
     updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at,
-    messages
+    messages: messages.filter((message) => message.role !== "assistant" || message.content.trim())
   };
 }
 
@@ -65,12 +65,17 @@ export class PostgresConversationRepository {
           role TEXT NOT NULL,
           content TEXT NOT NULL,
           sources JSONB NOT NULL DEFAULT '[]'::jsonb,
+          position INTEGER,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `;
       await sql`
+        ALTER TABLE animal_messages
+        ADD COLUMN IF NOT EXISTS position INTEGER
+      `;
+      await sql`
         CREATE INDEX IF NOT EXISTS animal_messages_conversation_created_idx
-        ON animal_messages(conversation_id, created_at)
+        ON animal_messages(conversation_id, position, created_at)
       `;
     })();
     return this.ready;
@@ -80,7 +85,14 @@ export class PostgresConversationRepository {
     await this.ensureSchema();
     const sql = await this.getSql();
     const result = await sql`
-      SELECT c.id, c.title, c.created_at, c.updated_at, COUNT(m.id)::int AS message_count
+      SELECT
+        c.id,
+        c.title,
+        c.created_at,
+        c.updated_at,
+        COUNT(m.id) FILTER (
+          WHERE NOT (m.role = 'assistant' AND btrim(m.content) = '')
+        )::int AS message_count
       FROM animal_conversations c
       LEFT JOIN animal_messages m ON m.conversation_id = c.id
       GROUP BY c.id
@@ -111,7 +123,7 @@ export class PostgresConversationRepository {
       SELECT role, content, sources
       FROM animal_messages
       WHERE conversation_id = ${id}
-      ORDER BY created_at ASC
+      ORDER BY position ASC NULLS LAST, created_at ASC
     `;
     return toConversation(row, messagesResult.rows.map(toMessage));
   }
@@ -155,15 +167,19 @@ export class PostgresConversationRepository {
   async replaceMessages(conversation) {
     const sql = await this.getSql();
     await sql`DELETE FROM animal_messages WHERE conversation_id = ${conversation.id}`;
-    for (const message of conversation.messages || []) {
+    const messages = (conversation.messages || []).filter(
+      (message) => message.role !== "assistant" || String(message.content || "").trim()
+    );
+    for (const [index, message] of messages.entries()) {
       await sql`
-        INSERT INTO animal_messages (id, conversation_id, role, content, sources)
+        INSERT INTO animal_messages (id, conversation_id, role, content, sources, position)
         VALUES (
           ${createId()},
           ${conversation.id},
           ${message.role},
           ${message.content},
-          ${JSON.stringify(message.sources || [])}::jsonb
+          ${JSON.stringify(message.sources || [])}::jsonb,
+          ${index}
         )
       `;
     }

@@ -12,6 +12,17 @@ function now() {
   return new Date().toISOString();
 }
 
+function cleanMessages(messages = []) {
+  return messages.filter((message) => message.role !== "assistant" || String(message.content || "").trim());
+}
+
+function cleanConversation(conversation) {
+  return {
+    ...conversation,
+    messages: cleanMessages(conversation.messages || [])
+  };
+}
+
 export function welcomeMessage() {
   return {
     role: "assistant",
@@ -49,14 +60,15 @@ export class JsonConversationRepository {
     return store.conversations
       .map(({ messages, ...conversation }) => ({
         ...conversation,
-        messageCount: Array.isArray(messages) ? messages.length : 0
+        messageCount: cleanMessages(Array.isArray(messages) ? messages : []).length
       }))
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   }
 
   async get(id) {
     const store = await readStore();
-    return store.conversations.find((conversation) => conversation.id === id) || null;
+    const conversation = store.conversations.find((item) => item.id === id);
+    return conversation ? cleanConversation(conversation) : null;
   }
 
   async create(title = "新的动物对话") {
@@ -82,7 +94,7 @@ export class JsonConversationRepository {
       title,
       createdAt: timestamp,
       updatedAt: timestamp,
-      messages: messages.length ? messages : [welcomeMessage()]
+      messages: cleanMessages(messages).length ? cleanMessages(messages) : [welcomeMessage()]
     };
     store.conversations.unshift(conversation);
     await writeStore(store);
@@ -92,7 +104,7 @@ export class JsonConversationRepository {
   async save(conversation) {
     const store = await readStore();
     const index = store.conversations.findIndex((item) => item.id === conversation.id);
-    const next = { ...conversation, updatedAt: now() };
+    const next = cleanConversation({ ...conversation, updatedAt: now() });
     if (index === -1) store.conversations.unshift(next);
     else store.conversations[index] = next;
     await writeStore(store);
