@@ -1,3 +1,4 @@
+import { sql } from "@vercel/postgres";
 import { welcomeMessage } from "./jsonConversationRepository.js";
 
 function createId() {
@@ -24,24 +25,19 @@ function toMessage(row) {
 
 export class PostgresConversationRepository {
   constructor() {
-    this.sql = null;
     this.ready = null;
   }
 
   async getSql() {
-    if (!this.sql) {
-      if (
-        !process.env.POSTGRES_URL &&
-        !process.env.POSTGRES_PRISMA_URL &&
-        !process.env.POSTGRES_URL_NON_POOLING &&
-        !process.env.DATABASE_URL
-      ) {
-        throw new Error("STORAGE_PROVIDER=postgres requires Vercel Postgres env vars such as POSTGRES_URL.");
-      }
-      const mod = await import("@vercel/postgres");
-      this.sql = mod.sql;
+    if (
+      !process.env.POSTGRES_URL &&
+      !process.env.POSTGRES_PRISMA_URL &&
+      !process.env.POSTGRES_URL_NON_POOLING &&
+      !process.env.DATABASE_URL
+    ) {
+      throw new Error("STORAGE_PROVIDER=postgres requires Vercel Postgres env vars such as POSTGRES_URL.");
     }
-    return this.sql;
+    return sql;
   }
 
   async ensureSchema() {
