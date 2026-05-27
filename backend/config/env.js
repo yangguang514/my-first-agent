@@ -61,17 +61,19 @@ export function getSearchConfig() {
           ? "brave"
           : "off");
 
-  const rawKey =
-    process.env.SEARCH_API_KEY ||
-    process.env.TAVILY_API_KEY ||
-    process.env.SERPER_API_KEY ||
-    process.env.BRAVE_SEARCH_API_KEY;
+  const keyByProvider = {
+    tavily: process.env.TAVILY_API_KEY || process.env.SEARCH_API_KEY,
+    serper: process.env.SERPER_API_KEY || process.env.SEARCH_API_KEY,
+    brave: process.env.BRAVE_SEARCH_API_KEY || process.env.SEARCH_API_KEY
+  };
+  const rawKey = keyByProvider[provider] || process.env.SEARCH_API_KEY;
 
   return {
     provider,
     key: rawKey && !/^your_.+_key_here$/i.test(rawKey.trim()) ? rawKey.trim() : "",
     maxResults: Math.max(1, Math.min(Number(process.env.SEARCH_MAX_RESULTS || 5), 8)),
-    timeoutMs: Math.max(3000, Number(process.env.SEARCH_TIMEOUT_MS || 10000))
+    timeoutMs: Math.max(3000, Number(process.env.SEARCH_TIMEOUT_MS || 10000)),
+    strictErrors: /^true$/i.test(process.env.SEARCH_STRICT_ERRORS || "")
   };
 }
 

@@ -32,12 +32,13 @@ export async function clearConversation(id) {
 }
 
 export async function askOnce(messages) {
+  // 一次性问答也走同一套搜索计划，保证非流式和流式行为一致。
   const search = await searchWeb(messages);
-  const answer = await completeChat(messages, search.sources);
+  const answer = await completeChat(messages, search.sources, search);
   return {
     answer,
     sources: search.sources,
-    search: { enabled: search.enabled, query: search.query, note: search.note }
+    search: { enabled: search.enabled, skipped: search.skipped, query: search.query, note: search.note, plan: search.plan }
   };
 }
 
@@ -49,19 +50,23 @@ export async function appendUserMessageAndStream(conversationId, content, events
   conversation.title = generateLocalTitle(conversation.messages);
   conversation = await conversationRepository.save(conversation);
 
-  events.status("正在联网检索资料...");
+  events.status("正在判断是否需要联网检索...");
+  // searchWeb 会先生成搜索计划；如果不需要联网，会返回 skipped=true。
   const search = await searchWeb(conversation.messages);
   events.sources({
     enabled: search.enabled,
+    skipped: search.skipped,
     query: search.query,
     note: search.note,
+    plan: search.plan,
     sources: search.sources
   });
 
   events.status("正在生成回答...");
   let answer = "";
 
-  answer = await streamChat(conversation.messages, search.sources, (delta) => {
+  // 把搜索计划和来源一起传给模型，让回答阶段知道搜索是执行、跳过还是失败。
+  answer = await streamChat(conversation.messages, search.sources, search, (delta) => {
     answer += delta;
     events.delta(delta);
   });
