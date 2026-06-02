@@ -8,6 +8,7 @@ import {
   importConversation,
   listConversations
 } from "../services/chatService.js";
+import { AGENT_PATTERNS } from "../agents/animalAgentOrchestrator.js";
 import { generateLocalTitle } from "../services/titleService.js";
 import { getRouteParts, readJsonBody, sanitizeMessages, sendJson } from "../utils/http.js";
 import { sendSse, setupSse } from "../utils/sse.js";
@@ -25,6 +26,11 @@ export async function handleApi(req, res) {
   try {
     if (req.method === "GET" && parts[1] === "conversations" && parts.length === 2) {
       sendJson(res, 200, { conversations: await listConversations() });
+      return true;
+    }
+
+    if (req.method === "GET" && parts[1] === "agents") {
+      sendJson(res, 200, { patterns: AGENT_PATTERNS });
       return true;
     }
 

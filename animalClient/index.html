@@ -325,6 +325,49 @@
         margin-bottom: 0;
       }
 
+      .bubble h1,
+      .bubble h2,
+      .bubble h3,
+      .bubble h4,
+      .bubble h5,
+      .bubble h6 {
+        margin: 14px 0 8px;
+        line-height: 1.35;
+      }
+
+      .bubble h1:first-child,
+      .bubble h2:first-child,
+      .bubble h3:first-child,
+      .bubble h4:first-child,
+      .bubble h5:first-child,
+      .bubble h6:first-child {
+        margin-top: 0;
+      }
+
+      .bubble h1 {
+        font-size: 24px;
+      }
+
+      .bubble h2 {
+        font-size: 21px;
+      }
+
+      .bubble h3 {
+        font-size: 18px;
+      }
+
+      .bubble h4,
+      .bubble h5,
+      .bubble h6 {
+        font-size: 16px;
+      }
+
+      .bubble hr {
+        margin: 16px 0;
+        border: 0;
+        border-top: 1px solid var(--line);
+      }
+
       .bubble ul,
       .bubble ol {
         margin: 8px 0 10px;
@@ -355,6 +398,14 @@
 
       .bubble th {
         background: #e8f2ec;
+      }
+
+      .bubble code {
+        padding: 2px 5px;
+        border-radius: 4px;
+        background: #e5ece7;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.92em;
       }
 
       .source-list {
@@ -615,9 +666,19 @@
       }
 
       function renderInline(text) {
-        return escapeHtml(text)
+        const codeSpans = [];
+        const escaped = escapeHtml(text).replace(/`([^`]+?)`/g, (_, code) => {
+          const token = `\u0000CODE${codeSpans.length}\u0000`;
+          codeSpans.push(`<code>${code}</code>`);
+          return token;
+        });
+
+        return escaped
           .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-          .replace(/`(.+?)`/g, "<code>$1</code>");
+          .replace(/__(.+?)__/g, "<strong>$1</strong>")
+          .replace(/(^|[^\w*])\*([^*\n]+?)\*(?=[^\w*]|$)/g, "$1<em>$2</em>")
+          .replace(/(^|[^\w_])_([^_\n]+?)_(?=[^\w_]|$)/g, "$1<em>$2</em>")
+          .replace(/\u0000CODE(\d+)\u0000/g, (_, index) => codeSpans[Number(index)] || "");
       }
 
       function renderTable(lines, startIndex) {
@@ -658,6 +719,18 @@
           }
           if (!line) {
             closeList();
+            continue;
+          }
+          if (/^[-*_]{3,}$/.test(line)) {
+            closeList();
+            blocks.push("<hr>");
+            continue;
+          }
+          const heading = line.match(/^(#{1,6})\s+(.+)$/);
+          if (heading) {
+            closeList();
+            const level = heading[1].length;
+            blocks.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
             continue;
           }
           if (line.startsWith(">")) {

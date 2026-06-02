@@ -1,17 +1,6 @@
 import { getLlmConfig, getSearchConfig } from "../config/env.js";
-
-// Tavily 可选的可信动物/自然科学资料源，用于限制搜索范围时减少噪声。
-const DEFAULT_TAVILY_DOMAINS = [
-  "iucnredlist.org",
-  "animaldiversity.org",
-  "itis.gov",
-  "gbif.org",
-  "eol.org",
-  "nationalgeographic.com",
-  "britannica.com",
-  "smithsonianmag.com",
-  "worldwildlife.org"
-];
+import { callTool, WEB_SEARCH_TOOL } from "../tools/index.js";
+import { fetchWithTimeout } from "../utils/fetchWithTimeout.js";
 
 // 搜索计划的意图枚举，避免模型返回任意字符串影响后续分支判断。
 const SEARCH_INTENTS = new Set([
@@ -80,41 +69,6 @@ function parseBooleanEnv(name, fallback = false) {
   return /^(1|true|yes|on)$/i.test(value.trim());
 }
 
-function parseListEnv(name, fallback = []) {
-  const value = process.env[name];
-  if (!value) return fallback;
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-// Tavily 的 search_depth 有固定取值，这里做一次白名单校验。
-function parseSearchDepth() {
-  const value = (process.env.TAVILY_SEARCH_DEPTH || "advanced").trim().toLowerCase();
-  return ["basic", "advanced", "fast", "ultra-fast"].includes(value) ? value : "advanced";
-}
-
-// Tavily topic 只支持少量类型，避免把错误环境变量直接传给搜索 API。
-function parseTopic() {
-  const value = (process.env.TAVILY_TOPIC || "general").trim().toLowerCase();
-  return ["general", "news", "finance"].includes(value) ? value : "general";
-}
-
-// Tavily include_answer 支持布尔值，也支持 basic/advanced 字符串模式。
-function parseIncludeAnswer() {
-  const value = (process.env.TAVILY_INCLUDE_ANSWER || "false").trim().toLowerCase();
-  if (["basic", "advanced"].includes(value)) return value;
-  return /^(1|true|yes|on)$/i.test(value);
-}
-
-// Tavily include_raw_content 支持布尔值，也支持 markdown/text 格式。
-function parseRawContent() {
-  const value = (process.env.TAVILY_INCLUDE_RAW_CONTENT || "false").trim().toLowerCase();
-  if (["markdown", "text"].includes(value)) return value;
-  return /^(1|true|yes|on)$/i.test(value);
-}
-
 function normalizeText(value, maxLength) {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -133,17 +87,6 @@ function normalizeSource(item, index, maxSnippetLength = 1600) {
     score: typeof item.score === "number" ? item.score : null,
     publishedDate: item.published_date || item.publishedDate || ""
   };
-}
-
-// 给外部 HTTP 请求统一加超时，避免 planner 或搜索接口长时间卡住对话。
-async function fetchWithTimeout(url, options, timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { ...options, signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 // planner 有时会返回 ```json 代码块，这里只抽取其中的 JSON 对象。
@@ -260,95 +203,6 @@ async function generateSearchPlan(messages) {
   }
 }
 
-// 根据环境变量组装 Tavily 请求体，集中处理高级检索参数。
-function buildTavilyPayload(query, config) {
-  const searchDepth = parseSearchDepth();
-  const topic = parseTopic();
-  const payload = {
-    query,
-    max_results: config.maxResults,
-    search_depth: searchDepth,
-    topic,
-    include_answer: parseIncludeAnswer(),
-    include_raw_content: parseRawContent(),
-    include_favicon: true,
-    include_usage: true
-  };
-
-  if (searchDepth === "advanced") {
-    payload.chunks_per_source = Math.max(1, Math.min(Number(process.env.TAVILY_CHUNKS_PER_SOURCE || 3), 3));
-  }
-
-  if (parseBooleanEnv("TAVILY_AUTO_PARAMETERS", false)) {
-    payload.auto_parameters = true;
-  }
-
-  const includeDomains = parseListEnv(
-    "TAVILY_INCLUDE_DOMAINS",
-    parseBooleanEnv("TAVILY_USE_TRUSTED_DOMAINS", false) ? DEFAULT_TAVILY_DOMAINS : []
-  );
-  const excludeDomains = parseListEnv("TAVILY_EXCLUDE_DOMAINS");
-  if (includeDomains.length) payload.include_domains = includeDomains;
-  if (excludeDomains.length) payload.exclude_domains = excludeDomains;
-
-  const timeRange = (process.env.TAVILY_TIME_RANGE || "").trim();
-  const country = (process.env.TAVILY_COUNTRY || "").trim();
-  if (timeRange) payload.time_range = timeRange;
-  if (country && topic === "general") payload.country = country;
-
-  return payload;
-}
-
-async function searchWithTavily(query, config) {
-  const response = await fetchWithTimeout(
-    "https://api.tavily.com/search",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${config.key}` },
-      body: JSON.stringify(buildTavilyPayload(query, config))
-    },
-    config.timeoutMs
-  );
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error || `Tavily search failed: HTTP ${response.status}`);
-  return Array.isArray(data.results) ? data.results : [];
-}
-
-async function searchWithSerper(query, config) {
-  const response = await fetchWithTimeout(
-    "https://google.serper.dev/search",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-KEY": config.key },
-      body: JSON.stringify({ q: query, num: config.maxResults })
-    },
-    config.timeoutMs
-  );
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.message || `Serper search failed: HTTP ${response.status}`);
-  return Array.isArray(data.organic) ? data.organic : [];
-}
-
-async function searchWithBrave(query, config) {
-  const params = new URLSearchParams({ q: query, count: String(config.maxResults) });
-  const response = await fetchWithTimeout(
-    `https://api.search.brave.com/res/v1/web/search?${params}`,
-    { headers: { Accept: "application/json", "X-Subscription-Token": config.key } },
-    config.timeoutMs
-  );
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.message || `Brave search failed: HTTP ${response.status}`);
-  return Array.isArray(data?.web?.results) ? data.web.results : [];
-}
-
-// 暂时保留简单分发；下一步抽象 tools 时会把这里升级成工具注册/调用层。
-async function runSearch(query, config) {
-  if (config.provider === "tavily") return searchWithTavily(query, config);
-  if (config.provider === "serper") return searchWithSerper(query, config);
-  if (config.provider === "brave") return searchWithBrave(query, config);
-  throw new Error(`Unsupported SEARCH_PROVIDER: ${config.provider}`);
-}
-
 // 搜索服务入口：先生成搜索计划，再按计划决定跳过、提示缺配置或执行搜索。
 export async function searchWeb(messages) {
   const plan = await generateSearchPlan(messages);
@@ -387,9 +241,10 @@ export async function searchWeb(messages) {
     };
   }
 
-  let rawResults = [];
+  let toolCall;
   try {
-    rawResults = await runSearch(plan.query, config);
+    toolCall = await callTool(WEB_SEARCH_TOOL, { query: plan.query }, { searchConfig: config });
+    if (!toolCall.ok) throw new Error(toolCall.error);
   } catch (error) {
     if (config.strictErrors) throw error;
     return {
@@ -403,7 +258,7 @@ export async function searchWeb(messages) {
   }
 
   const seen = new Set();
-  const sources = rawResults
+  const sources = (toolCall.result?.results || [])
     .map((item, index) => normalizeSource(item, index, Number(process.env.SEARCH_SNIPPET_MAX_LENGTH || 1600)))
     .filter((source) => source.url && !seen.has(source.url) && seen.add(source.url))
     .slice(0, config.maxResults);
@@ -413,6 +268,7 @@ export async function searchWeb(messages) {
     skipped: false,
     query: plan.query,
     note: plan.reason,
+    tool: { name: toolCall.tool, provider: toolCall.result?.provider, elapsedMs: toolCall.elapsedMs },
     plan,
     sources
   };
