@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AnimalAgent</title>
+    <title>AnimalAgent | 动物知识助手</title>
+    <meta name="description" content="支持联网检索、来源标注和会话保存的动物知识助手。" />
     <style>
       :root {
         --bg: #eef3ee;
@@ -559,43 +560,459 @@
         }
       }
     </style>
+    <style>
+      :root {
+        --bg: #e9e6dc;
+        --panel: #f8f5ed;
+        --panel-strong: #eeeadf;
+        --text: #20251f;
+        --muted: #687066;
+        --line: #d8d2c4;
+        --accent: #47705a;
+        --accent-dark: #2d4d3c;
+        --amber: #a96f32;
+        --blue: #47705a;
+        --shadow: 0 28px 80px rgba(45, 53, 43, 0.18);
+      }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        background:
+          radial-gradient(circle at 12% 8%, rgba(255, 255, 255, 0.72), transparent 26rem),
+          radial-gradient(circle at 90% 92%, rgba(71, 112, 90, 0.12), transparent 32rem),
+          var(--bg);
+        font-family: "Aptos", "Segoe UI Variable", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+      }
+
+      body::before {
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.035'/%3E%3C/svg%3E");
+        content: "";
+        pointer-events: none;
+      }
+
+      button, textarea, a {
+        transition: color 180ms ease, border-color 180ms ease, background-color 180ms ease,
+          box-shadow 180ms ease, opacity 180ms ease, transform 180ms ease;
+      }
+
+      button:focus-visible, textarea:focus-visible, a:focus-visible {
+        outline: 3px solid rgba(169, 111, 50, 0.38);
+        outline-offset: 2px;
+      }
+
+      button:active { transform: translateY(1px); }
+
+      .skip-link {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 30;
+        padding: 9px 12px;
+        border-radius: 6px;
+        color: #fff;
+        background: var(--accent-dark);
+        transform: translateY(-160%);
+      }
+
+      .skip-link:focus { transform: translateY(0); }
+
+      .app-shell {
+        width: 100%;
+        height: 100dvh;
+        min-height: 100dvh;
+        padding: clamp(12px, 2vw, 28px);
+      }
+
+      .workspace {
+        grid-template-columns: minmax(270px, 304px) minmax(0, 1fr);
+        width: min(1280px, 100%);
+        height: 100%;
+        border: 1px solid rgba(89, 91, 77, 0.2);
+        border-radius: 20px 8px 20px 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .side-panel {
+        gap: 22px;
+        padding: 30px 24px 24px;
+        background: radial-gradient(circle at 10% 0%, rgba(255,255,255,.09), transparent 17rem), #263e32;
+        border-right: 1px solid rgba(0, 0, 0, 0.15);
+      }
+
+      .brand { align-items: flex-start; }
+
+      .brand-mark {
+        width: 46px;
+        height: 52px;
+        border-color: rgba(248, 245, 237, 0.26);
+        border-radius: 14px 5px 14px 5px;
+        color: #263e32;
+        background: #d9c79e;
+        box-shadow: inset 0 0 0 4px rgba(38, 62, 50, 0.08);
+        font-family: Georgia, "Songti SC", serif;
+        font-size: 25px;
+      }
+
+      .brand h1, .chat-header h2 {
+        font-family: Georgia, "Songti SC", "SimSun", serif;
+        font-weight: 600;
+        letter-spacing: -0.035em;
+      }
+
+      .brand h1 { font-size: 25px; }
+      .brand p { max-width: 20ch; margin-top: 5px; font-size: 12px; }
+
+      .new-chat-button {
+        min-height: 46px;
+        border-color: rgba(248, 245, 237, 0.28);
+        border-radius: 10px 4px 10px 4px;
+        background: rgba(248, 245, 237, 0.09);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+
+      .new-chat-button:hover {
+        border-color: rgba(248, 245, 237, 0.5);
+        background: rgba(248, 245, 237, 0.16);
+      }
+
+      .side-heading {
+        color: rgba(248, 245, 237, 0.5);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+      }
+
+      .conversation-list {
+        gap: 5px;
+        max-height: none;
+        scrollbar-color: rgba(248, 245, 237, 0.25) transparent;
+      }
+
+      .conversation-open, .conversation-delete {
+        border-color: transparent;
+        border-radius: 7px 3px 7px 3px;
+        background: transparent;
+      }
+
+      .conversation-open { padding: 9px 10px; }
+
+      .conversation-item.active .conversation-open {
+        border-color: rgba(248, 245, 237, 0.16);
+        background: rgba(248, 245, 237, 0.13);
+        box-shadow: inset 3px 0 #d9c79e;
+      }
+
+      .conversation-title { font-size: 13px; font-weight: 600; }
+      .conversation-meta { font-size: 11px; font-variant-numeric: tabular-nums; }
+
+      .capability-list {
+        gap: 0;
+        padding-top: 14px;
+        border-top: 1px solid rgba(248, 245, 237, 0.14);
+      }
+
+      .capability-list div {
+        display: grid;
+        grid-template-columns: 74px 1fr;
+        gap: 8px;
+        padding: 7px 0;
+        border: 0;
+        background: transparent;
+      }
+
+      .capability-list strong { color: #e2d3ae; font-size: 12px; font-weight: 600; }
+      .capability-list span {
+        margin: 0;
+        color: rgba(248, 245, 237, 0.54);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .chat-panel { position: relative; background: var(--panel); }
+
+      .chat-header {
+        min-height: 86px;
+        padding: 20px clamp(20px, 3vw, 38px);
+      }
+
+      .chat-header h2 { font-size: clamp(21px, 2vw, 27px); }
+      .chat-header p { margin-top: 3px; font-size: 12px; }
+      .header-actions { display: flex; gap: 8px; }
+
+      .icon-button {
+        border-radius: 9px 4px 9px 4px;
+        background: transparent;
+      }
+
+      .icon-button:hover {
+        color: var(--accent-dark);
+        border-color: #b9b2a4;
+        background: var(--panel-strong);
+      }
+
+      .menu-button { display: none; }
+
+      .messages {
+        gap: 24px;
+        min-width: 0;
+        padding: 34px clamp(20px, 5vw, 72px);
+        overflow-x: hidden;
+        scrollbar-color: #c8c0b1 transparent;
+      }
+
+      .message {
+        gap: 7px;
+        width: auto;
+        min-width: 0;
+        max-width: min(100%, 760px);
+      }
+
+      .message.assistant {
+        width: min(100%, 760px);
+      }
+
+      .message.user {
+        width: fit-content;
+        max-width: min(68%, 620px);
+      }
+
+      .message-label {
+        color: #7c8178;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+      }
+      .message.user .message-label { text-align: right; }
+
+      .bubble {
+        min-width: 0;
+        max-width: 100%;
+        padding: 15px 18px;
+        overflow-wrap: anywhere;
+        border-radius: 13px 4px 13px 4px;
+        line-height: 1.76;
+        text-wrap: pretty;
+        word-break: break-word;
+      }
+
+      .user .bubble {
+        background: var(--accent-dark);
+        box-shadow: 0 8px 24px rgba(45, 77, 60, 0.16);
+      }
+
+      .assistant .bubble {
+        border: 0;
+        border-left: 2px solid #b9aa81;
+        border-radius: 0 10px 10px 0;
+        background: #efebe1;
+      }
+
+      .bubble table {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+      }
+
+      .bubble pre {
+        max-width: 100%;
+        overflow-x: auto;
+        white-space: pre-wrap;
+      }
+
+      .bubble th { background: #e0ddd2; }
+      .source-list { min-width: 0; max-width: 100%; overflow: hidden; }
+      .source-list a { border: 0; border-radius: 6px 2px 6px 2px; background: rgba(255,255,255,.55); }
+      .source-list a:hover { color: #1e382b; background: #fff; transform: translateX(2px); }
+
+      .empty-state {
+        display: grid;
+        align-content: center;
+        justify-items: start;
+        width: min(620px, 100%);
+        min-height: 100%;
+        margin: auto;
+        padding: 20px 0 8vh;
+      }
+
+      .empty-kicker {
+        margin-bottom: 16px;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+      }
+
+      .empty-state h3 {
+        max-width: 14ch;
+        margin: 0;
+        font-family: Georgia, "Songti SC", "SimSun", serif;
+        font-size: clamp(32px, 5vw, 54px);
+        font-weight: 500;
+        line-height: 1.08;
+        letter-spacing: -0.045em;
+        text-wrap: balance;
+      }
+
+      .empty-state p { max-width: 48ch; margin: 18px 0 0; color: var(--muted); line-height: 1.75; }
+
+      .examples {
+        gap: 7px;
+        padding: 0 clamp(20px, 3vw, 38px) 14px;
+        scrollbar-width: none;
+      }
+
+      .examples button {
+        max-width: 320px;
+        padding: 9px 12px;
+        border-color: #d2ccbf;
+        border-radius: 8px 3px 8px 3px;
+        color: #50584f;
+        background: transparent;
+      }
+
+      .examples button:hover {
+        border-color: #9da79e;
+        color: var(--accent-dark);
+        background: #eeeadf;
+        transform: translateY(-1px);
+      }
+
+      .composer {
+        gap: 10px;
+        padding: 14px clamp(20px, 3vw, 38px) 22px;
+        background: rgba(248, 245, 237, 0.94);
+      }
+
+      .composer textarea {
+        min-height: 52px;
+        padding: 14px 15px;
+        resize: none;
+        border-color: #cfc8ba;
+        border-radius: 10px 4px 10px 4px;
+        color: var(--text);
+        background: #fffdf8;
+      }
+
+      .composer textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(71, 112, 90, 0.12);
+      }
+
+      .composer button {
+        min-width: 88px;
+        border-radius: 10px 4px 10px 4px;
+        background: var(--accent-dark);
+        font-weight: 600;
+      }
+
+      .composer button:hover:not(:disabled) { background: #203d2e; transform: translateY(-1px); }
+      .composer button:disabled { cursor: progress; }
+      .mobile-backdrop { display: none; }
+
+      @media (max-width: 820px) {
+        .app-shell { padding: 0; }
+        .workspace { display: block; height: 100dvh; border: 0; border-radius: 0; }
+
+        .side-panel {
+          position: fixed;
+          inset: 0 auto 0 0;
+          z-index: 20;
+          width: min(86vw, 330px);
+          padding: 24px 20px;
+          box-shadow: 24px 0 70px rgba(25, 32, 27, 0.3);
+          transform: translateX(-105%);
+          transition: transform 240ms ease;
+        }
+
+        body.sidebar-open .side-panel { transform: translateX(0); }
+
+        .mobile-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 15;
+          display: block;
+          border: 0;
+          background: rgba(24, 31, 26, 0.48);
+          opacity: 0;
+          pointer-events: none;
+          backdrop-filter: blur(2px);
+        }
+
+        body.sidebar-open .mobile-backdrop { opacity: 1; pointer-events: auto; }
+        .chat-panel { height: 100dvh; }
+        .chat-header { min-height: 72px; padding: 13px 16px; }
+        .chat-header p { display: none; }
+        .header-actions { flex-direction: row-reverse; }
+        .menu-button { display: grid; }
+        .messages { padding: 24px 16px; }
+        .message.assistant { width: 100%; max-width: 100%; }
+        .message.user { width: fit-content; max-width: 88%; }
+        .examples { padding: 0 16px 11px; }
+        .examples button { max-width: 76vw; }
+
+        .composer {
+          grid-template-columns: minmax(0, 1fr) auto;
+          padding: 12px 16px max(14px, env(safe-area-inset-bottom));
+        }
+
+        .composer button { min-width: 68px; min-height: 50px; }
+        .capability-list { display: none; }
+      }
+
+      @media (max-width: 480px) {
+        .chat-header h2 {
+          max-width: 48vw;
+          overflow: hidden;
+          font-size: 20px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .empty-state { padding-bottom: 4vh; }
+        .empty-state h3 { font-size: 36px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
   </head>
   <body>
+    <a class="skip-link" href="#messages">跳到对话内容</a>
     <main class="app-shell">
       <section class="workspace" aria-label="AnimalAgent 对话区">
-        <aside class="side-panel">
+        <aside class="side-panel" aria-label="会话导航">
           <div class="brand">
             <div class="brand-mark" aria-hidden="true">A</div>
             <div>
               <h1>AnimalAgent</h1>
-              <p>联网检索 + 信源标注 + 会话保存</p>
+              <p>联网检索 · 来源标注 · 会话保存</p>
             </div>
           </div>
 
-          <button id="newChat" class="new-chat-button" type="button">新建对话</button>
+          <button id="newChat" class="new-chat-button" type="button">＋ 新建对话</button>
 
           <section class="conversation-section" aria-label="历史对话">
-            <div class="side-heading">对话</div>
+            <div class="side-heading">最近对话</div>
             <div id="conversationList" class="conversation-list"></div>
           </section>
 
           <div class="capability-list" aria-label="核心能力">
-            <div>
-              <strong>物种百科</strong>
-              <span>学名、栖息地、食性、保护现状</span>
-            </div>
-            <div>
-              <strong>行为解码</strong>
-              <span>从演化动机解释古怪行为</span>
-            </div>
-            <div>
-              <strong>跨物种对比</strong>
-              <span>用表格快速分辨相似动物</span>
-            </div>
-            <div>
-              <strong>生态链关联</strong>
-              <span>把物种放回真实生态位</span>
-            </div>
+            <div><strong>物种百科</strong><span>学名、栖息地、食性、保护现状</span></div>
+            <div><strong>行为解码</strong><span>从演化动机解释动物行为</span></div>
+            <div><strong>物种对比</strong><span>用结构化信息分辨相似动物</span></div>
+            <div><strong>生态关联</strong><span>把物种放回真实生态位</span></div>
           </div>
         </aside>
 
@@ -603,27 +1020,32 @@
           <header class="chat-header">
             <div>
               <h2 id="chatTitle">动物学问答</h2>
-              <p>直接提问，回答会流式输出并保存</p>
+              <p>提出问题，回答会实时生成并自动保存</p>
             </div>
-            <button id="clearChat" class="icon-button" type="button" title="清空当前对话" aria-label="清空当前对话">
-              <span aria-hidden="true">C</span>
-            </button>
+            <div class="header-actions">
+              <button id="menuButton" class="icon-button menu-button" type="button" title="打开会话列表" aria-label="打开会话列表">
+                <span aria-hidden="true">☰</span>
+              </button>
+              <button id="clearChat" class="icon-button" type="button" title="清空当前对话" aria-label="清空当前对话">
+                <span aria-hidden="true">清</span>
+              </button>
+            </div>
           </header>
 
           <div id="messages" class="messages" aria-live="polite"></div>
 
           <div class="examples" aria-label="示例问题">
-            <button type="button">帮我介绍一下雪豹，顺便说下它和花豹有什么区别。</button>
-            <button type="button">猫咪为什么会踩奶？</button>
-            <button type="button">花豹 vs 美洲豹，怎么快速分辨？</button>
-            <button type="button">如果海獭数量下降，海带森林会发生什么？</button>
+            <button type="button">介绍一下雪豹，它和花豹有什么区别？</button>
+            <button type="button">猫为什么会踩奶？</button>
+            <button type="button">花豹和美洲豹怎么快速分辨？</button>
+            <button type="button">海獭减少会怎样影响海带森林？</button>
           </div>
 
           <form id="chatForm" class="composer">
             <textarea
               id="promptInput"
               rows="2"
-              placeholder="输入你想了解的动物、行为或对比问题..."
+              placeholder="输入动物、行为或物种对比问题..."
               aria-label="输入问题"
               required
             ></textarea>
@@ -632,6 +1054,7 @@
         </section>
       </section>
     </main>
+    <button id="mobileBackdrop" class="mobile-backdrop" type="button" aria-label="关闭会话列表"></button>
 
     <script>
       const activeKey = "animal-agent-active-conversation-id";
@@ -644,6 +1067,8 @@
         send: document.querySelector("#sendButton"),
         clear: document.querySelector("#clearChat"),
         create: document.querySelector("#newChat"),
+        menu: document.querySelector("#menuButton"),
+        backdrop: document.querySelector("#mobileBackdrop"),
         title: document.querySelector("#chatTitle"),
         examples: document.querySelectorAll(".examples button")
       };
@@ -836,7 +1261,7 @@
                   <span class="conversation-title">${escapeHtml(conversation.title)}</span>
                   <span class="conversation-meta">${date}</span>
                 </button>
-                <button class="conversation-delete" type="button" title="删除对话" aria-label="删除对话">x</button>
+                <button class="conversation-delete" type="button" title="删除对话" aria-label="删除对话">×</button>
               </div>
             `;
           })
@@ -866,16 +1291,27 @@
       }
 
       function renderMessages() {
-        return (state.activeConversation?.messages || [])
+        const messages = state.activeConversation?.messages || [];
+        if (!messages.length) {
+          return `
+            <section class="empty-state">
+              <span class="empty-kicker">FIELD NOTES · 01</span>
+              <h3>从一个动物问题开始。</h3>
+              <p>问物种特征、行为原因或生态关系。需要检索时，回答会附上可继续阅读的信息来源。</p>
+            </section>
+          `;
+        }
+        return messages
           .map((message, index) => {
             const label = message.role === "user" ? "You" : "AnimalAgent";
-            const isStreaming = index === state.streamingIndex && !message.content;
+            const isStreamingMessage = index === state.streamingIndex;
+            const isWaitingForContent = isStreamingMessage && !message.content;
             return `
               <article class="message ${message.role}">
                 <div class="message-label">${label}</div>
                 <div class="bubble">
-                  ${isStreaming ? renderTyping() : renderMarkdown(message.content)}
-                  ${message.role === "assistant" ? renderSources(message.sources) : ""}
+                  ${isWaitingForContent ? renderTyping() : renderMarkdown(message.content)}
+                  ${message.role === "assistant" && !isStreamingMessage ? renderSources(message.sources) : ""}
                 </div>
               </article>
             `;
@@ -927,6 +1363,7 @@
         state.activeId = data.conversation.id;
         state.activeConversation = data.conversation;
         localStorage.setItem(activeKey, state.activeId);
+        document.body.classList.remove("sidebar-open");
         render();
       }
 
@@ -961,7 +1398,7 @@
         } catch (error) {
           const assistant = state.activeConversation.messages[state.streamingIndex];
           if (assistant) {
-            assistant.content = `**服务暂时不可用**\n\n${error.message}\n\n请检查服务端环境变量、模型 Key、Search Key 和存储配置。`;
+            assistant.content = `**服务暂时不可用**\n\n${error.message}\n\n请检查服务端环境变量、模型密钥、搜索密钥和存储配置。`;
           }
         } finally {
           state.streamingIndex = -1;
@@ -995,6 +1432,18 @@
       });
 
       els.create.addEventListener("click", createAndOpenConversation);
+
+      els.menu.addEventListener("click", () => {
+        document.body.classList.add("sidebar-open");
+      });
+
+      els.backdrop.addEventListener("click", () => {
+        document.body.classList.remove("sidebar-open");
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") document.body.classList.remove("sidebar-open");
+      });
 
       els.clear.addEventListener("click", async () => {
         if (!state.activeId || state.busy) return;
