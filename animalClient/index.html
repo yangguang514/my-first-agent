@@ -1160,7 +1160,8 @@
           }
           if (line.startsWith(">")) {
             closeList();
-            blocks.push(`<blockquote>${renderInline(line.replace(/^>\s?/, ""))}</blockquote>`);
+            const quote = line.replace(/^>\s?/, "").trim();
+            if (quote) blocks.push(`<blockquote>${renderInline(quote)}</blockquote>`);
             continue;
           }
           const unordered = line.match(/^[-*]\s+(.+)/);
